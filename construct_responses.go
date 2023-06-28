@@ -64,7 +64,8 @@ func constructEthLayer() (eth *layers.Ethernet) {
 
 }
 
-/* 根据“假回包”，构造用于lzr响应的syn包（即发出去的syn包）
+/*
+ * 根据“假回包”，构造用于lzr响应的syn包（即发出去的syn包）
  * 因此Dest/Src要交换
  * 其实该回包是虚拟的（syn包都还没发出去，哪里来的回包）
  * 但是为了符合根据WritingQueue中的已有包构造lzr的响应包的工作流程

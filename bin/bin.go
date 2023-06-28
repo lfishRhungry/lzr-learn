@@ -174,7 +174,9 @@ func LZRMain() {
 	incomingDone.Wait()
 
 	for {
+		//等待结果记录完毕
 		if ipMetaIsDone && len(writingQueue) == 0 && !isWriting {
+			//记录其他信息
 			if options.MemProfile != "" {
 				f, err := os.Create(options.MemProfile)
 				if err != nil {
