@@ -13,11 +13,10 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-This file also includes code from 
+This file also includes code from
 https://github.com/orcaman/concurrent-map/blob/master/concurrent_map.go
 which is licensed under the MIT license (Copyright (c) 2014 streamrail)
 */
-
 
 package lzr
 
@@ -27,36 +26,34 @@ import (
 	//"os"
 )
 
+// 由于pStateShared由使用了互斥锁的map实现，一个大规模map容易存在性能瓶颈
+// 因此使用SHARD_COUNT个pStateShard，构成完整的状态维护映射pState
 var SHARD_COUNT = 4096
 
-// A "thread" safe map of type string:Anything.
-// To avoid lock bottlenecks this map is dived to several (SHARD_COUNT) map shards.
-type pState []*pStateShared
+type pState []*pStateShard
 
-
-
-// A "thread" safe string to anything map.
-type pStateShared struct {
-	items        map[string]*packet_state
-	sync.RWMutex // Read Write mutex, guards access to internal map.
+// 一个线程安全的map[string]*packet_state
+type pStateShard struct {
+	items map[string]*packet_state
+	sync.RWMutex
 }
 
-// Creates a new concurrent map.
+// 创建一个由一系列并发map构成的packet状态map
 func NewpState() pState {
 	m := make(pState, SHARD_COUNT)
 	for i := 0; i < SHARD_COUNT; i++ {
-		m[i] = &pStateShared{items: make(map[string]*packet_state)}
+		m[i] = &pStateShard{items: make(map[string]*packet_state)}
 	}
 	return m
 }
 
-// GetShard returns shard under given key
-func (m pState) GetShard(key string) *pStateShared {
+// 对packet_metadata的key进行hash 获得其所在pStateShared
+func (m pState) GetShard(key string) *pStateShard {
 	return m[uint(fnv32(key))%uint(SHARD_COUNT)]
 }
 
 // Insert or Update - updates existing element or inserts a new one using UpsertCb
-func (m pState) Insert(key string, p * packet_state) {
+func (m pState) Insert(key string, p *packet_state) {
 	shard := m.GetShard(key)
 	shard.Lock()
 
@@ -115,63 +112,69 @@ func (m pState) Remove(key string) {
 	shard.Unlock()
 }
 
-
-/* FOR PACKET_METADATA */
-//is Processing for goPackets
-func (m pState) IsStartProcessing( p * packet_metadata ) ( bool,bool ) {
-    // Get shard
+// 针对pcap中获取的p 确认是否为其存在状态维护 是否可以对其进行处理
+// 如果可以对其进行处理 则自动将其维护状态设置为正在处理
+func (m pState) IsStartProcessing(p *packet_metadata) (inMap bool, canStartProcessing bool) {
+	// Get shard
 	pKey := constructKey(p)
-    shard := m.GetShard(pKey)
-    shard.Lock()
-    // Get item from shard.
-    p_out, ok := shard.items[pKey]
-    if !ok {
+	shard := m.GetShard(pKey)
+	shard.Lock()
+	// Get item from shard.
+	p_out, ok := shard.items[pKey]
+	//未维护状态
+	if !ok {
 		shard.Unlock()
-        return false,false
-    }
+		return false, false
+	}
+	//存在维护状态 且没有正在处理 说明可以开始处理
 	if !p_out.Packet.Processing {
+		//由于将要被处理 这里直接设置为正在被处理
 		p_out.Packet.startProcessing()
 		shard.Unlock()
-		return true,true
+		return true, true
 	}
-    shard.Unlock()
-    return true, false
-
-}
-
-func (m pState) StartProcessing( p * packet_metadata ) bool {
-
-    // Get shard
-	pKey := constructKey(p)
-    shard := m.GetShard(pKey)
-    shard.RLock()
-    // See if element is within shard.
-    p_out, ok := shard.items[pKey]
-    if !ok {
-		shard.RUnlock()
-        return false
-    }
-    p_out.Packet.startProcessing()
-    shard.RUnlock()
-    return ok
-
-}
-
-func (m pState) FinishProcessing( p * packet_metadata ) bool {
-
-    // Get shard
-	pKey := constructKey(p)
-    shard := m.GetShard(pKey)
-    shard.Lock()
-    // See if element is within shard.
-    p_out, ok := shard.items[pKey]
-    if !ok {
-		shard.Unlock()
-        return false
-    }
-    p_out.Packet.finishedProcessing()
 	shard.Unlock()
-    return ok
+	//存在维护状态 但正在处理 此时不能被处理
+	return true, false
+
+}
+
+// 在维护状态中标记该packet_metadata处于正在处理状态
+// 如果不存在状态维护则返回false
+func (m pState) StartProcessing(p *packet_metadata) bool {
+
+	// Get shard
+	pKey := constructKey(p)
+	shard := m.GetShard(pKey)
+	shard.RLock()
+	// See if element is within shard.
+	p_out, ok := shard.items[pKey]
+	if !ok {
+		shard.RUnlock()
+		return false
+	}
+	p_out.Packet.startProcessing()
+	shard.RUnlock()
+	return ok
+
+}
+
+// 在维护状态中标记该packet_metadata已不处于正在处理状态
+func (m pState) FinishProcessing(p *packet_metadata) bool {
+
+	// Get shard
+	pKey := constructKey(p)
+	shard := m.GetShard(pKey)
+	shard.Lock()
+	// See if element is within shard.
+	p_out, ok := shard.items[pKey]
+	if !ok {
+		shard.Unlock()
+		return false
+	}
+	p_out.Packet.finishedProcessing()
+	shard.Unlock()
+	return ok
 
 }
 

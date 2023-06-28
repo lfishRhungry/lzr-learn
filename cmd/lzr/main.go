@@ -7,6 +7,7 @@ import (
 
 // main wraps the "true" main, bin.LZRMain()
 // after importing all handshake modules
+// to make importing self-defined modules conveniently
 func main() {
 	bin.LZRMain()
 }

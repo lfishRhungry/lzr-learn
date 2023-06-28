@@ -1,17 +1,18 @@
 package tls
 
 import (
-	"strings"
 	"bytes"
-	"github.com/stanford-esrg/lzr"
 	"math/rand"
+	"strings"
+
+	"github.com/stanford-esrg/lzr"
 )
 
 // Handshake implements the lzr.Handshake interface
 type HandshakeMod struct {
 }
 
-func (h *HandshakeMod) GetData( dst string ) []byte {
+func (h *HandshakeMod) GetData(dst string) []byte {
 
 	data := []byte("\x16\x03\x01\x00\x75\x01\x00\x00\x71\x03\x03")
 	token := make([]byte, 32)
@@ -22,13 +23,14 @@ func (h *HandshakeMod) GetData( dst string ) []byte {
 	return data
 }
 
-func (h *HandshakeMod) Verify( data string ) string {
+func (h *HandshakeMod) Verify(data string) string {
 
 	datab := []byte(data)
 	if len(datab) < 3 {
 		return ""
 	}
-	if strings.Contains( data, "HTTPS" ) {
+	//TODO: 似乎可以修改为识别HTTPS
+	if strings.Contains(data, "HTTPS") {
 		return "tls"
 	}
 
@@ -47,16 +49,16 @@ func (h *HandshakeMod) Verify( data string ) string {
 	// TLS 1.2                   3,3  0x0303
 	// TLS 1.3                   3,4  0x0304
 
-	if bytes.Equal([]byte(data[0:1]), []byte{0x16} ) ||
-		bytes.Equal([]byte(data[0:1]), []byte{0x14} ) ||
-		bytes.Equal([]byte(data[0:1]), []byte{0x15} ) ||
-		bytes.Equal([]byte(data[0:1]), []byte{0x17} )  {
-		if bytes.Equal([]byte(data[1:3]),[]byte{0x03,0x01} ) ||
-			bytes.Equal([]byte(data[1:3]),[]byte{0x03,0x02} ) ||
-			bytes.Equal([]byte(data[1:3]),[]byte{0x03,0x03} ) ||
-			bytes.Equal([]byte(data[1:3]),[]byte{0x03,0x04} ) {
+	if bytes.Equal([]byte(data[0:1]), []byte{0x16}) ||
+		bytes.Equal([]byte(data[0:1]), []byte{0x14}) ||
+		bytes.Equal([]byte(data[0:1]), []byte{0x15}) ||
+		bytes.Equal([]byte(data[0:1]), []byte{0x17}) {
+		if bytes.Equal([]byte(data[1:3]), []byte{0x03, 0x01}) ||
+			bytes.Equal([]byte(data[1:3]), []byte{0x03, 0x02}) ||
+			bytes.Equal([]byte(data[1:3]), []byte{0x03, 0x03}) ||
+			bytes.Equal([]byte(data[1:3]), []byte{0x03, 0x04}) {
 			return "tls"
-		} else if bytes.Equal([]byte(data[1:3]),[]byte{0x03,0x00} ) {
+		} else if bytes.Equal([]byte(data[1:3]), []byte{0x03, 0x00}) {
 			return "ssl"
 		}
 	}
@@ -65,6 +67,5 @@ func (h *HandshakeMod) Verify( data string ) string {
 
 func RegisterHandshake() {
 	var h HandshakeMod
-	lzr.AddHandshake( "tls", &h )
+	lzr.AddHandshake("tls", &h)
 }
-
