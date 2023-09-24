@@ -16,12 +16,13 @@ limitations under the License.
 package lzr
 
 import (
+	"bufio"
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
-	"bufio"
+	"strconv"
 	"time"
-	"fmt"
 )
 
 var (
@@ -29,40 +30,37 @@ var (
 )
 
 type output_file struct {
-
-	F	 *bufio.Writer
+	F *bufio.Writer
 }
 
 type summary struct {
-
-	TotalResponses	int
-	ZeroWindow		int
-	ACKed			int
-	Data			int
-	No_SYNACK		int
-	Rst				int
-	Fin				int
-	Resp_ack		int
-	HyperACKtive	int
+	TotalResponses int
+	ZeroWindow     int
+	ACKed          int
+	Data           int
+	No_SYNACK      int
+	Rst            int
+	Fin            int
+	Resp_ack       int
+	HyperACKtive   int
 }
 
-
-func Summarize( t time.Duration ) {
+func Summarize(t time.Duration) {
 	fmt.Fprintln(os.Stderr, "Runtime:", t)
-	out, _ := json.Marshal( summaryLZR )
+	out, _ := json.Marshal(summaryLZR)
 	fmt.Fprintln(os.Stderr, string(out))
 	//print out fingerprints
 	for k, v := range GetFingerprints() {
-		fmt.Fprintln(os.Stderr, k +":", v)
+		fmt.Fprintln(os.Stderr, k+":", v)
 	}
 }
 
-func addToSummary( packet *packet_metadata ) {
+func addToSummary(packet *packet_metadata) {
 
-	summaryLZR.TotalResponses  += 1
+	summaryLZR.TotalResponses += 1
 
 	if packet.HyperACKtive {
-		summaryLZR.HyperACKtive +=1
+		summaryLZR.HyperACKtive += 1
 		return
 	}
 	if packet.Window == 0 {
@@ -83,31 +81,31 @@ func addToSummary( packet *packet_metadata ) {
 	if packet.Data != "" {
 		summaryLZR.Data += 1
 	}
-	if  !packet.SYN	&& packet.ACK {
+	if !packet.SYN && packet.ACK {
 		summaryLZR.Resp_ack += 1
 	}
 }
 
-func ( f *output_file ) Record( packet *packet_metadata, handshakes []string ) {
+func (f *output_file) Record(packet *packet_metadata, handshakes []string) {
 
 	packet.fingerprintData()
 
 	if FeedZGrab() {
 		if packet.Fingerprint != "" {
-			fmt.Println( packet.Saddr + ", ," + packet.Fingerprint )
+			fmt.Println(packet.Saddr + ", ," + packet.Fingerprint + "," + strconv.Itoa(packet.Sport))
 		}
 	}
 
-	addToSummary( packet )
+	addToSummary(packet)
 
-	out, _ := json.Marshal( packet )
-	_,err := (f.F).WriteString( string(out) )
+	out, _ := json.Marshal(packet)
+	_, err := (f.F).WriteString(string(out))
 	if err != nil {
 		f.F.Flush()
 		panic(err)
 		log.Fatal(err)
 	}
-	_,err = (f.F).WriteString( "\n" )
+	_, err = (f.F).WriteString("\n")
 	if err != nil {
 		f.F.Flush()
 		panic(err)
@@ -116,14 +114,13 @@ func ( f *output_file ) Record( packet *packet_metadata, handshakes []string ) {
 	return
 }
 
-
-func InitFile( fname string ) *output_file {
+func InitFile(fname string) *output_file {
 
 	var f *os.File
 	if fname == "-" {
 		f = os.Stdout
 	} else {
-		file, err := os.OpenFile( fname, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0777 )
+		file, err := os.OpenFile(fname, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0777)
 		if err != nil {
 			panic(err)
 			log.Fatal(err)
@@ -137,4 +134,3 @@ func InitFile( fname string ) *output_file {
 
 	return o
 }
-
