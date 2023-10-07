@@ -130,18 +130,27 @@ func (h *HandshakeMod) Verify(data string) string {
 	//check application protocol over tls by Extension: ALPN
 	if bytes.Contains(datab,
 		[]byte{
+			0x00, 0x10, //Extension Type: ALPN
+			0x00, 0x0b, //Length: 11
+			0x00, 0x09, //ALPN Extension Length: 9
 			0x08,                                           //ALPN string length: 8
 			0x68, 0x74, 0x74, 0x70, 0x2f, 0x31, 0x2e, 0x31, //ALPN Next Protocol: http/1.1
 		}) {
 		ret = "https"
 	} else if bytes.Contains(datab,
 		[]byte{
+			0x00, 0x10, //Extension Type: ALPN
+			0x00, 0x05, //Length: 5
+			0x00, 0x03, //ALPN Extension Length: 3
 			0x02,       //ALPN string length: 2
 			0x68, 0x32, //ALPN Next Protocol: h2
 		}) {
 		ret = "http2"
 	} else if bytes.Contains(datab,
 		[]byte{
+			0x00, 0x10, //Extension Type: ALPN
+			0x00, 0x06, //Length: 6
+			0x00, 0x04, //ALPN Extension Length: 4
 			0x03,             //ALPN string length: 3
 			0x68, 0x32, 0x63, //ALPN Next Protocol: h2c
 		}) {
