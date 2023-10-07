@@ -9,11 +9,10 @@ import (
 	"github.com/stanford-esrg/lzr"
 )
 
-// Handshake implements the lzr.Handshake interface
-type HandshakeMod struct {
-}
+// init a template of ClientHello with fixed info except timestamp
+var clienHelloTemplate []byte
 
-func (h *HandshakeMod) GetData(dst string) []byte {
+func init() {
 
 	// ServerName is used to verify the hostname on the returned
 	// certificates unless InsecureSkipVerify is given. It is also included
@@ -31,7 +30,7 @@ func (h *HandshakeMod) GetData(dst string) []byte {
 	var b [2]byte
 	l := uint16(len(tc.HandshakeState.Hello.Raw))
 	binary.BigEndian.PutUint16(b[0:2], l)
-	data := append( //Need to wrap Handshake payload with TLS Record Layer
+	clienHelloTemplate = append( //Need to wrap Handshake payload with TLS Record Layer
 		[]byte{
 			0x16,       //Content Type: Handshake (22)
 			0x03, 0x01, //Version: TLS 1.0 (0x0301)
@@ -41,11 +40,17 @@ func (h *HandshakeMod) GetData(dst string) []byte {
 
 	//Inject '\r\n' to random of ClientHello manually.
 	//this make http1.1 verified by http response for bad request
-	data[0x0f] = 0x0d
-	data[0x10] = 0x0a
+	clienHelloTemplate[0x0f] = 0x0d
+	clienHelloTemplate[0x10] = 0x0a
+}
 
-	// fmt.Printf("ClientHello len : %d\n", len(data))
-	// fmt.Printf("ClientHello data: %x\n", data)
+// Handshake implements the lzr.Handshake interface
+type HandshakeMod struct {
+}
+
+func (h *HandshakeMod) GetData(dst string) []byte {
+
+	data := bytes.Clone(clienHelloTemplate)
 
 	return data
 }
