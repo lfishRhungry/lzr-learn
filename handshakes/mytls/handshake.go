@@ -54,6 +54,7 @@ func init() {
 			&tls.SessionTicketExtension{},
 			//!NOTE
 			&tls.ALPNExtension{AlpnProtocols: []string{"h2", "http/1.1", "pop3", "imap", "ftp"}},
+			&tls.NPNExtension{NextProtos: []string{"h2", "http/1.1"}},
 			&tls.StatusRequestExtension{},
 			&tls.SignatureAlgorithmsExtension{SupportedSignatureAlgorithms: []tls.SignatureScheme{
 				tls.ECDSAWithP256AndSHA256,
@@ -133,7 +134,9 @@ func (h *HandshakeMod) GetData(dst string) []byte {
 }
 
 func (h *HandshakeMod) Verify(data string) string {
-	if len(data) < 10 {
+	//This is a general TLS Alert of ERR_SSL_VERSION_OR_CIPHER_MISMATCH
+	//"\u0015\u0003\u0001\u0000\u0002\u0002("
+	if len(data) < 7 {
 		return ""
 	}
 
