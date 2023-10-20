@@ -14,7 +14,7 @@ var clienHelloTemplate []byte
 
 func init() {
 
-	//modifying based on ClientHello of Chrome102 a
+	//based on ClientHello of Chrome83 for TLS1.0-1.3 support
 	spec := &tls.ClientHelloSpec{
 		CipherSuites: []uint16{
 			tls.GREASE_PLACEHOLDER,
@@ -43,7 +43,7 @@ func init() {
 			&tls.ExtendedMasterSecretExtension{},
 			&tls.RenegotiationInfoExtension{Renegotiation: tls.RenegotiateOnceAsClient},
 			&tls.SupportedCurvesExtension{Curves: []tls.CurveID{
-				tls.GREASE_PLACEHOLDER,
+				tls.CurveID(tls.GREASE_PLACEHOLDER),
 				tls.X25519,
 				tls.CurveP256,
 				tls.CurveP384,
@@ -52,9 +52,7 @@ func init() {
 				0x00, // pointFormatUncompressed
 			}},
 			&tls.SessionTicketExtension{},
-			//!NOTE
-			&tls.ALPNExtension{AlpnProtocols: []string{"h2", "http/1.1", "pop3", "imap", "ftp"}},
-			&tls.NPNExtension{NextProtos: []string{"h2", "http/1.1"}},
+			&tls.ALPNExtension{AlpnProtocols: []string{"h2", "http/1.1"}},
 			&tls.StatusRequestExtension{},
 			&tls.SignatureAlgorithmsExtension{SupportedSignatureAlgorithms: []tls.SignatureScheme{
 				tls.ECDSAWithP256AndSHA256,
@@ -78,11 +76,12 @@ func init() {
 				tls.GREASE_PLACEHOLDER,
 				tls.VersionTLS13,
 				tls.VersionTLS12,
+				tls.VersionTLS11,
+				tls.VersionTLS10,
 			}},
 			&tls.UtlsCompressCertExtension{Algorithms: []tls.CertCompressionAlgo{
 				tls.CertCompressionBrotli,
 			}},
-			&tls.ApplicationSettingsExtension{SupportedProtocols: []string{"h2"}},
 			&tls.UtlsGREASEExtension{},
 			&tls.UtlsPaddingExtension{GetPaddingLen: tls.BoringPaddingStyle},
 		},
@@ -226,43 +225,44 @@ func (h *HandshakeMod) Verify(data string) string {
 			0x68, 0x32, //ALPN Next Protocol: h2
 		}) {
 		ret = "http2"
-	} else if bytes.Contains(datab,
-		[]byte{
-			0x00, 0x10, //Extension Type: ALPN
-			0x00, 0x06, //Length: 6
-			0x00, 0x04, //ALPN Extension Length: 4
-			0x03,             //ALPN string length: 3
-			0x68, 0x32, 0x63, //ALPN Next Protocol: h2c
-		}) {
-		ret = "http2tcp"
-	} else if bytes.Contains(datab,
-		[]byte{
-			0x00, 0x10, //Extension Type: ALPN
-			0x00, 0x07, //Length: 7
-			0x00, 0x05, //ALPN Extension Length: 5
-			0x04,                   //ALPN string length: 4
-			0x70, 0x6f, 0x70, 0x33, //ALPN Next Protocol: pop3
-		}) {
-		ret = "pop3s"
-	} else if bytes.Contains(datab,
-		[]byte{
-			0x00, 0x10, //Extension Type: ALPN
-			0x00, 0x07, //Length: 7
-			0x00, 0x05, //ALPN Extension Length: 5
-			0x04,                   //ALPN string length: 4
-			0x69, 0x6d, 0x6d, 0x70, //ALPN Next Protocol: imap
-		}) {
-		ret = "imaps"
-	} else if bytes.Contains(datab,
-		[]byte{
-			0x00, 0x10, //Extension Type: ALPN
-			0x00, 0x06, //Length: 6
-			0x00, 0x04, //ALPN Extension Length: 4
-			0x03,             //ALPN string length: 3
-			0x66, 0x74, 0x70, //ALPN Next Protocol: ftp
-		}) {
-		ret = "ftps"
 	}
+	// } else if bytes.Contains(datab,
+	// 	[]byte{
+	// 		0x00, 0x10, //Extension Type: ALPN
+	// 		0x00, 0x06, //Length: 6
+	// 		0x00, 0x04, //ALPN Extension Length: 4
+	// 		0x03,             //ALPN string length: 3
+	// 		0x68, 0x32, 0x63, //ALPN Next Protocol: h2c
+	// 	}) {
+	// 	ret = "http2tcp"
+	// } else if bytes.Contains(datab,
+	// 	[]byte{
+	// 		0x00, 0x10, //Extension Type: ALPN
+	// 		0x00, 0x07, //Length: 7
+	// 		0x00, 0x05, //ALPN Extension Length: 5
+	// 		0x04,                   //ALPN string length: 4
+	// 		0x70, 0x6f, 0x70, 0x33, //ALPN Next Protocol: pop3
+	// 	}) {
+	// 	ret = "pop3s"
+	// } else if bytes.Contains(datab,
+	// 	[]byte{
+	// 		0x00, 0x10, //Extension Type: ALPN
+	// 		0x00, 0x07, //Length: 7
+	// 		0x00, 0x05, //ALPN Extension Length: 5
+	// 		0x04,                   //ALPN string length: 4
+	// 		0x69, 0x6d, 0x6d, 0x70, //ALPN Next Protocol: imap
+	// 	}) {
+	// 	ret = "imaps"
+	// } else if bytes.Contains(datab,
+	// 	[]byte{
+	// 		0x00, 0x10, //Extension Type: ALPN
+	// 		0x00, 0x06, //Length: 6
+	// 		0x00, 0x04, //ALPN Extension Length: 4
+	// 		0x03,             //ALPN string length: 3
+	// 		0x66, 0x74, 0x70, //ALPN Next Protocol: ftp
+	// 	}) {
+	// 	ret = "ftps"
+	// }
 
 	// return ""
 	// datab := []byte(data)
