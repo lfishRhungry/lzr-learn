@@ -140,7 +140,7 @@ func (h *HandshakeMod) Verify(data string) string {
 	}
 
 	//exposed by response to Bad request
-	if data[0:4] == "HTTP" {
+	if data[0:4] == "HTTP" || data[0:4] == "http" {
 		return "http"
 	}
 
